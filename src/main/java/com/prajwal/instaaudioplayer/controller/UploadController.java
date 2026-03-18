@@ -1,17 +1,27 @@
 package com.prajwal.instaaudioplayer.controller;
 
+import com.prajwal.instaaudioplayer.service.OCRService;
+import com.prajwal.instaaudioplayer.service.TextCleaner;
+import com.prajwal.instaaudioplayer.service.YouTubeService;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.prajwal.instaaudioplayer.service.OCRService;
-
 import java.io.File;
+import java.util.*;
+import org.json.JSONObject;
 
 @RestController
 public class UploadController {
 
+    private final YouTubeService youTubeService;
+
+    public UploadController(YouTubeService youTubeService) {
+        this.youTubeService = youTubeService;
+    }
+
     @PostMapping("/upload")
-    public String uploadImage(@RequestParam("image") MultipartFile file) {
+    public Object uploadImage(@RequestParam("image") MultipartFile file) {
 
         try {
 
@@ -29,15 +39,47 @@ public class UploadController {
 
             file.transferTo(dest);
 
+            // OCR
             OCRService ocrService = new OCRService();
-
             String extractedText = ocrService.readText(dest.getAbsolutePath());
 
-            return "Detected Text:\n\n" + extractedText;
+            // Clean songs
+            TextCleaner cleaner = new TextCleaner();
+            List<String> songs = cleaner.cleanSongs(extractedText);
+
+            List<Map<String, String>> result = new ArrayList<>();
+
+            for (String song : songs) {
+
+                String youtubeResponse = youTubeService.searchVideo(song);
+
+                JSONObject json = new JSONObject(youtubeResponse);
+
+                String videoId =
+
+                        json.getJSONArray("items")
+
+                        .getJSONObject(0)
+
+                        .getJSONObject("id")
+
+                        .getString("videoId");
+
+                Map<String, String> songData = new HashMap<>();
+
+                songData.put("title", song);
+
+                songData.put("videoId", videoId);
+
+                result.add(songData);
+
+            }
+
+            return result;
 
         } catch (Exception e) {
+
             return "Error: " + e.getMessage();
         }
-
     }
 }
