@@ -11,6 +11,7 @@ import java.io.File;
 import java.util.*;
 import org.json.JSONObject;
 
+@CrossOrigin(origins = "*")
 @RestController
 public class UploadController {
 
