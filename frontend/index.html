@@ -1,77 +1,89 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Insta Audio Player</title>
 
     <style>
-
-        body{
-        margin:0;
-        font-family:Segoe UI;
-        background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-        color:white;
-        text-align:center;
+        body {
+            background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+            color: white;
+            font-family: Arial;
+            text-align: center;
         }
 
-        h1{
-        margin-top:40px;
-        font-size:40px;
+        h1 {
+            margin-top: 30px;
         }
 
-        .container{
-        width:600px;
-        margin:auto;
-        background:#1c1c1c;
-        padding:30px;
-        border-radius:15px;
-        box-shadow:0 10px 40px rgba(0,0,0,0.6);
+        .container {
+            width: 400px;
+            margin: auto;
+            padding: 20px;
+            background: #1e1e1e;
+            border-radius: 10px;
         }
 
-        input{
-        padding:10px;
-        margin:10px;
-        background:#333;
-        color:white;
-        border:none;
-        border-radius:8px;
+        /* BUTTON */
+        button {
+            padding: 10px 15px;
+            background: #00aaff;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
         }
 
-        button{
-        padding:12px;
-        margin:10px;
-        border:none;
-        border-radius:8px;
-        background:#00c6ff;
-        background:linear-gradient(45deg,#00c6ff,#0072ff);
-        color:white;
-        font-size:16px;
-        cursor:pointer;
-        transition:0.3s;
+        button:hover {
+            background: #008ecc;
         }
 
-        button:hover{
-        transform:scale(1.05);
+        /* LIST */
+        ul {
+            list-style: none;
+            padding: 0;
         }
 
-        #playlist button{
-        display:block;
-        width:90%;
-        margin:8px auto;
-        background:#222;
+        li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #2a2a2a;
+            border-radius: 5px;
+            cursor: pointer;
         }
 
-        #playlist button:hover{
-        background:#0072ff;
+        li:hover {
+            background: #3a3a3a;
         }
 
-        iframe{
-        margin-top:25px;
-        border-radius:10px;
-        box-shadow:0 10px 30px rgba(0,0,0,0.8);
+        /* 🔥 LOADER */
+        #loaderContainer {
+            display: none;
+            margin-top: 15px;
+        }
+
+        #progressBar {
+            width: 100%;
+            height: 20px;
+            background: #444;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #progress {
+            height: 100%;
+            width: 0%;
+            background: #00ffcc;
+            transition: width 0.3s;
+        }
+
+        #progressText {
+            margin-top: 5px;
+            font-size: 14px;
         }
 
     </style>
-
 </head>
 
 <body>
@@ -80,64 +92,131 @@
 
 <div class="container">
 
-    <input type="file" id="image">
-
+    <!-- Upload -->
+    <input type="file" id="imageInput">
     <br>
+    <button onclick="generatePlaylist()">Generate Playlist</button>
 
-    <button onclick="upload()">Generate Playlist</button>
+    <!-- 🔥 LOADER -->
+    <div id="loaderContainer">
+        <div id="progressBar">
+            <div id="progress"></div>
+        </div>
+        <div id="progressText">0%</div>
+    </div>
 
-    <div id="playlist"></div>
+    <!-- Song List -->
+    <ul id="songList"></ul>
 
-    <iframe id="player"
-            width="100%"
-            height="315"
-            frameborder="0"
-            allowfullscreen>
-    </iframe>
+    <!-- Play All -->
+    <button onclick="playAll()">▶ Play All</button>
 
 </div>
 
 <script>
 
-    async function upload(){
+    let songsData = [];
+    let progressInterval;
 
-    let file = document.getElementById("image").files[0]
+    // 🔹 GENERATE PLAYLIST
+    function generatePlaylist() {
 
-    let formData = new FormData()
+        let fileInput = document.getElementById("imageInput");
+        let file = fileInput.files[0];
 
-    formData.append("image",file)
+        if (!file) {
+            alert("Please upload an image!");
+            return;
+        }
 
-    let res = await fetch("http://localhost:8080/upload",{
-    method:"POST",
-    body:formData
-    })
+        // 🔥 SHOW LOADER
+        document.getElementById("loaderContainer").style.display = "block";
 
-    let songs = await res.json()
+        let progress = 0;
+        progressInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += 5;
+                updateProgress(progress);
+            }
+        }, 200);
 
-    let playlist = document.getElementById("playlist")
+        let formData = new FormData();
+        formData.append("image", file);
 
-    playlist.innerHTML=""
+        fetch("http://localhost:8080/upload", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
 
-    songs.forEach(song => {
+            clearInterval(progressInterval);
+            updateProgress(100);
 
-    let btn = document.createElement("button")
+            setTimeout(() => {
+                document.getElementById("loaderContainer").style.display = "none";
+            }, 500);
 
-    btn.innerText = "▶ " + song.title
-
-    btn.onclick = () => play(song.videoId)
-
-    playlist.appendChild(btn)
-
-    })
-
+            songsData = data;
+            displaySongs(data);
+        })
+        .catch(err => {
+            console.log(err);
+            clearInterval(progressInterval);
+            document.getElementById("loaderContainer").style.display = "none";
+        });
     }
 
-    function play(videoId){
 
-    document.getElementById("player").src =
+    // 🔹 UPDATE PROGRESS
+    function updateProgress(value) {
+        document.getElementById("progress").style.width = value + "%";
+        document.getElementById("progressText").innerText = value + "%";
+    }
 
-    "https://www.youtube.com/embed/" + videoId + "?autoplay=1&rel=0"
 
+    // 🔹 DISPLAY SONGS
+    function displaySongs(songs) {
+        let list = document.getElementById("songList");
+        list.innerHTML = "";
+
+        songs.forEach(song => {
+            let li = document.createElement("li");
+            li.innerText = "🎵 " + song.title;
+
+            li.onclick = () => {
+                if (song.videoId && song.videoId.length === 11) {
+                    window.open("https://www.youtube.com/watch?v=" + song.videoId, "_blank");
+                } else {
+                    alert("Invalid video!");
+                }
+            };
+
+            list.appendChild(li);
+        });
+    }
+
+
+    // 🔥 PLAY ALL
+    function playAll() {
+
+        if (songsData.length === 0) {
+            alert("No songs loaded!");
+            return;
+        }
+
+        let videoIds = songsData
+            .map(song => song.videoId)
+            .filter(id => id && id.length === 11);
+
+        if (videoIds.length === 0) {
+            alert("No valid videos found!");
+            return;
+        }
+
+        let url = "https://www.youtube.com/watch_videos?video_ids=" + videoIds.join(",");
+
+        window.open(url, "_blank");
     }
 
 </script>

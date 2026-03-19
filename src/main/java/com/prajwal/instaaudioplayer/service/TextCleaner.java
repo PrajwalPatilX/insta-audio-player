@@ -8,7 +8,6 @@ public class TextCleaner {
     public List<String> cleanSongs(String text) {
 
         String[] lines = text.split("\n");
-
         List<String> songs = new ArrayList<>();
 
         for (String line : lines) {
@@ -20,28 +19,49 @@ public class TextCleaner {
 
             String lower = line.toLowerCase();
 
-            if (lower.contains("original audio"))
+            // 🔥 REMOVE BAD WORDS (IMPROVED)
+            if (
+                    lower.contains("original") ||
+                            lower.contains("audio") ||
+                            lower.contains("status") ||
+                            lower.contains("instagram") ||
+                            lower.contains("reels")
+            )
                 continue;
 
-            if (line.matches(".*\\d+:\\d+.*")) // remove timestamps
+            // ❌ remove timestamps (like 0:30)
+            if (line.matches(".*\\d+:\\d+.*"))
                 continue;
 
+            // ❌ too short (garbage OCR)
             if (line.length() < 4)
                 continue;
 
-            // remove strange symbols
+            // 🔹 remove strange starting symbols
             line = line.replaceAll("^[^a-zA-Z0-9]+", "");
 
-            // remove small OCR prefixes like "ie", "J", "eA"
+            // 🔹 remove small OCR prefixes (ie, J, eA)
             if (line.matches("^[a-zA-Z]{1,2}\\s+.*")) {
                 line = line.substring(line.indexOf(" ") + 1);
             }
 
-            // 🆕 remove numbering like "3 " or "2 "
+            // 🔹 remove numbering like "1 ", "2 "
             line = line.replaceAll("^\\d+\\s+", "");
 
-            // remove artist lines
+            // 🔥 REMOVE SINGLE WORD GARBAGE (VERY IMPORTANT)
+            if (line.split(" ").length < 2)
+                continue;
+
+            // 🔥 REMOVE TOO MANY COMMAS (artist junk)
             if (line.contains(",") && line.split(",").length > 2)
+                continue;
+
+            // 🔹 final clean (remove special chars inside)
+            line = line.replaceAll("[^a-zA-Z0-9 ]", "");
+
+            line = line.trim();
+
+            if (line.isEmpty())
                 continue;
 
             songs.add(line);
