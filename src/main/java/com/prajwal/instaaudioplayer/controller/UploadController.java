@@ -46,28 +46,48 @@ public class UploadController {
 
             // Clean songs
             TextCleaner cleaner = new TextCleaner();
-            List<String> songs = cleaner.cleanSongs(extractedText);
+            List<String> allSongs = cleaner.cleanSongs(extractedText);
+            List<String> songs = allSongs.subList(0, Math.min(2, allSongs.size()));
+            System.out.println("CLEANED SONGS: " + songs);
 
             List<Map<String, String>> result = new ArrayList<>();
 
             for (String song : songs) {
 
-                String youtubeResponse = youTubeService.searchVideo(song);
+                System.out.println("Processing song: " + song);
 
-                JSONObject json = new JSONObject(youtubeResponse);
+                String videoId = null;
 
-                String videoId =
+                try {
 
-                        json.getJSONArray("items")
+                    String youtubeResponse = youTubeService.searchVideo(song);
 
-                        .getJSONObject(0)
+                    System.out.println("API RESPONSE: " + youtubeResponse);
 
-                        .getJSONObject("id")
+                    if (youtubeResponse != null && youtubeResponse.startsWith("{")) {
 
-                        .getString("videoId");
+                        JSONObject json = new JSONObject(youtubeResponse);
+
+                        if (json.has("items") && json.getJSONArray("items").length() > 0) {
+
+                            JSONObject item = json.getJSONArray("items").getJSONObject(0);
+
+                            if (item.has("id") && item.getJSONObject("id").has("videoId")) {
+                                videoId = item.getJSONObject("id").getString("videoId");
+                            }
+                        }
+                    }
+
+                } catch (Exception e) {
+                    System.out.println("YouTube failed for: " + song);
+                }
+
+                // 🔥 ALWAYS ADD SONG (even if API fails)
+                if (videoId == null) {
+                    videoId = "dQw4w9WgXcQ"; // fallback video
+                }
 
                 Map<String, String> songData = new HashMap<>();
-
                 songData.put("title", song);
 
                 songData.put("videoId", videoId);
@@ -80,7 +100,8 @@ public class UploadController {
 
         } catch (Exception e) {
 
-            return "Error: " + e.getMessage();
+            e.printStackTrace();
+            return new ArrayList<>();
         }
     }
 }

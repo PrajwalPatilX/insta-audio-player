@@ -19,7 +19,7 @@ public class TextCleaner {
 
             String lower = line.toLowerCase();
 
-            // 🔥 REMOVE BAD WORDS (IMPROVED)
+            // 🔥 REMOVE BAD WORDS
             if (
                     lower.contains("original") ||
                             lower.contains("audio") ||
@@ -33,35 +33,35 @@ public class TextCleaner {
             if (line.matches(".*\\d+:\\d+.*"))
                 continue;
 
-            // ❌ too short (garbage OCR)
-            if (line.length() < 4)
-                continue;
-
             // 🔹 remove strange starting symbols
             line = line.replaceAll("^[^a-zA-Z0-9]+", "");
+
+            // 🔹 remove numbering like "1 ", "2 "
+            line = line.replaceAll("^\\d+\\s+", "");
 
             // 🔹 remove small OCR prefixes (ie, J, eA)
             if (line.matches("^[a-zA-Z]{1,2}\\s+.*")) {
                 line = line.substring(line.indexOf(" ") + 1);
             }
 
-            // 🔹 remove numbering like "1 ", "2 "
-            line = line.replaceAll("^\\d+\\s+", "");
-
-            // 🔥 REMOVE SINGLE WORD GARBAGE (VERY IMPORTANT)
-            if (line.split(" ").length < 2)
-                continue;
-
-            // 🔥 REMOVE TOO MANY COMMAS (artist junk)
-            if (line.contains(",") && line.split(",").length > 2)
-                continue;
-
-            // 🔹 final clean (remove special chars inside)
+            // 🔹 remove special characters
             line = line.replaceAll("[^a-zA-Z0-9 ]", "");
 
             line = line.trim();
 
-            if (line.isEmpty())
+            // ❌ too short (final check)
+            if (line.length() < 3)
+                continue;
+
+            if (line.split(" ").length < 2 && !line.matches(".*\\d.*"))
+                continue;
+
+            // 🔥 REMOVE VERY WEAK GARBAGE (like "aaa", "bbb")
+            if (line.matches("^[a-zA-Z]{1,3}$"))
+                continue;
+
+            // 🔥 REMOVE TOO MANY COMMAS (artist junk)
+            if (line.contains(",") && line.split(",").length > 2)
                 continue;
 
             songs.add(line);

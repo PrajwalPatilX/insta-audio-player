@@ -93,7 +93,7 @@
 <div class="container">
 
     <!-- Upload -->
-    <input type="file" id="imageInput">
+    <input type="file" id="imageInput" multiple>
     <br>
     <button onclick="generatePlaylist()">Generate Playlist</button>
 
@@ -118,53 +118,67 @@
     let songsData = [];
     let progressInterval;
 
+    // 🔹 REMOVE DUPLICATES
+    function removeDuplicates(songs) {
+        let map = new Map();
+
+        songs.forEach(song => {
+            if (song.videoId && song.videoId.length === 11) {
+                map.set(song.videoId, song);
+            }
+        });
+
+        return Array.from(map.values());
+    }
+
     // 🔹 GENERATE PLAYLIST
-    function generatePlaylist() {
+    async function generatePlaylist() {
 
-        let fileInput = document.getElementById("imageInput");
-        let file = fileInput.files[0];
+        let files = document.getElementById("imageInput").files;
 
-        if (!file) {
-            alert("Please upload an image!");
+        if (files.length === 0) {
+            alert("Please upload at least one image!");
             return;
         }
 
-        // 🔥 SHOW LOADER
         document.getElementById("loaderContainer").style.display = "block";
 
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            if (progress < 90) {
-                progress += 5;
-                updateProgress(progress);
+        let allSongs = [];
+        let completed = 0;
+
+        for (let file of files) {
+
+            let formData = new FormData();
+            formData.append("image", file);
+
+            try {
+                let res = await fetch("http://localhost:8080/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                let data = await res.json();
+
+                allSongs = allSongs.concat(data);
+
+            } catch (err) {
+                console.log(err);
             }
-        }, 200);
 
-        let formData = new FormData();
-        formData.append("image", file);
+            completed++;
 
-        fetch("http://localhost:8080/upload", {
-            method: "POST",
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
+            // 🔥 update progress based on number of files
+            let percent = Math.floor((completed / files.length) * 100);
+            updateProgress(percent);
+        }
 
-            clearInterval(progressInterval);
-            updateProgress(100);
+        songsData = removeDuplicates(allSongs);
 
-            setTimeout(() => {
-                document.getElementById("loaderContainer").style.display = "none";
-            }, 500);
+        displaySongs(songsData);
 
-            songsData = data;
-            displaySongs(data);
-        })
-        .catch(err => {
-            console.log(err);
-            clearInterval(progressInterval);
+        setTimeout(() => {
             document.getElementById("loaderContainer").style.display = "none";
-        });
+        }, 500);
     }
 
 
